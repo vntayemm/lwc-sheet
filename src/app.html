@@ -1,30 +1,134 @@
 <template>
-	<div class="app slds-p-around_x-large">
-		<h1 class="slds-text-heading_large">{title}</h1>
-		<h3>Write JavaScript, HTML, and CSS code, and preview the output in the interactive code editor.</h3>
-
-		<!-- Using an if statement -->
-		<template if:true={showFeatures}>
-			<div class="slds-p-top_large">
-				<h2 class="slds-text-heading_medium">Features</h2>
-
-				<!-- Using a for statement -->
-				<template for:each={features} for:item='feature'>
-					<c-child label={feature.label} key={feature.label}>
-
-						<!-- Specifying the 'icon' slot for c-child -->
-						<lightning-icon icon-name={feature.icon} size="x-small" slot="icon"></lightning-icon>
-					</c-child>
-				</template>
-			</div>
-		</template>
-
-		<h2 class="slds-text-heading_medium slds-p-top_large">Resources</h2>
-		<a
-			href="https://developer.salesforce.com/docs/component-library/documentation/en/lwc/lwc.get_started_introduction">
-			Developer Guide
-		</a><br/>
-		<a href="https://developer.salesforce.com/docs/component-library/overview/components">Component Reference</a>
-
-	</div>
+	<style>
+		#drop {
+			border: 2px dashed #bbb;
+			-moz-border-radius: 5px;
+			-webkit-border-radius: 5px;
+			border-radius: 5px;
+			padding: 25px;
+			text-align: center;
+			font: 20pt bold, "Vollkorn";
+			color: #bbb
+		}
+	
+		#b64data {
+			width: 100%;
+		}
+	
+		a {
+			text-decoration: none
+		}
+	</style>
+	<!-- x-spreadsheet stylesheet -->
+	<link rel="stylesheet" href="https://unpkg.com/x-data-spreadsheet/dist/xspreadsheet.css" />
+	
+	
+	
+	<div id="drop">Drop a spreadsheet file here to see sheet data</div>
+	<input multiple type="file" name="xlfile" id="xlf" /> ... or click here to select a file
+	<textarea id="b64data">... or paste a base64-encoding here</textarea>
+		<p><input type="submit" value="Export to XLSX!" id="xport" onclick="export_xlsx();"></p>
+		<div id="htmlout"></div>
+		<br />
+		<script src="https://unpkg.com/x-data-spreadsheet/dist/xspreadsheet.js"></script>
+		<script src="shim.js"></script>
+		<script src="xlsx.full.min.js"></script>
+		<script src="xlsxspread.js"></script>
+		<script>
+			/*jshint browser:true */
+			/* eslint-env browser */
+			/* eslint no-use-before-define:0 */
+			/*global Uint8Array, Uint16Array, ArrayBuffer */
+			/*global XLSX */
+	
+			var HTMLOUT = document.getElementById('htmlout');
+			var xspr = x_spreadsheet(HTMLOUT);
+			HTMLOUT.style.height = (window.innerHeight - 400) + "px";
+			HTMLOUT.style.width = (window.innerWidth - 50) + "px";
+	
+			var process_wb = (function () {
+				var XPORT = document.getElementById('xport');
+	
+				return function process_wb(wb) {
+					/* convert to x-spreadsheet form */
+					var data = stox(wb);
+					/* update x-spreadsheet */
+					// xspr.addSheet('ddd')
+					var db = xspr.getData()
+					if (db.length == 1 && db[0].name == "sheet1") {
+						xspr.loadData(data);
+					} else {
+						db.push(data[0])
+						xspr.loadData(db);
+					}
+					XPORT.disabled = false;
+	
+					if (typeof console !== 'undefined') console.log("output", new Date());
+				};
+			})();
+	
+			var do_file = (function () {
+				return function do_file(files) {
+					for (let index = 0; index < files.length; index++) {
+						const f = files[index];
+						var reader = new FileReader();
+						reader.onload = function (e) {
+							if (typeof console !== 'undefined') console.log("onload", new Date());
+							var data = e.target.result;
+							data = new Uint8Array(data);
+							process_wb(XLSX.read(data, { type: 'array' }));
+						};
+						reader.readAsArrayBuffer(f);
+					}
+				};
+			})();
+	
+			(function () {
+				var drop = document.getElementById('drop');
+				if (!drop.addEventListener) return;
+	
+				function handleDrop(e) {
+					e.stopPropagation();
+					e.preventDefault();
+					do_file(e.dataTransfer.files);
+				}
+	
+				function handleDragover(e) {
+					e.stopPropagation();
+					e.preventDefault();
+					e.dataTransfer.dropEffect = 'copy';
+				}
+	
+				drop.addEventListener('dragenter', handleDragover, false);
+				drop.addEventListener('dragover', handleDragover, false);
+				drop.addEventListener('drop', handleDrop, false);
+			})();
+	
+			(function () {
+				var xlf = document.getElementById('xlf');
+				if (!xlf.addEventListener) return;
+				function handleFile(e) { do_file(e.target.files); }
+				xlf.addEventListener('change', handleFile, false);
+			})();
+	
+			function export_xlsx() {
+				var new_wb = xtos(xspr.getData());
+	
+				/* write file and trigger a download */
+				XLSX.writeFile(new_wb, 'sheetjs.xlsx', {});
+			}
+		</script>
+		<script type="text/javascript">
+			/* eslint no-use-before-define:0 */
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-36810333-1']);
+			_gaq.push(['_trackPageview']);
+	
+			(function () {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+		</script>
+	
 </template>
